@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>QR Player</title>
+  <style>
+    :root{--accent:#ff0066;--bg:#0b0b0b;--card:#1a1a1a;--muted:#9aa0a6}
+    html,body{height:100%;margin:0;background:radial-gradient(circle at center,#000,#111);font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;color:#fff}
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+    .player{width:100%;max-width:420px;background:var(--card);border-radius:16px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,0.6);display:flex;flex-direction:column;gap:10px;align-items:stretch}
+    audio{width:100%;outline:none;border-radius:8px}
+    .controls{display:flex;gap:8px}
+    .input-group{display:flex;flex:1}
+    input[type=number]{flex:1;padding:10px;border-radius:10px 0 0 10px;border:none;font-size:16px;outline:none}
+    button{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:0 10px 10px 0;font-size:16px;cursor:pointer}
+    .muted{color:var(--muted);font-size:13px;text-align:center}
+    #reader{width:100%;aspect-ratio:4/3;background:#000;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+    .qr-btn{background:#222;border:1px solid #333;color:#ff99cc;padding:10px;border-radius:10px;cursor:pointer}
+    #trackTitle{font-weight:600;text-align:center}
+    #errorMsg{color:var(--accent);text-align:center;font-size:14px}
+    @media (max-width:460px){.player{padding:12px;border-radius:12px}button,input{font-size:15px;padding:10px}}
+  </style>
+  <!-- html5-qrcode from CDN (AppsGeyser will include network access). -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="player" role="application">
+      <audio id="player" controls></audio>
+
+      <div class="controls">
+        <div class="input-group">
+          <input id="trackId" type="number" placeholder="Введите ID трека" />
+          <button id="playBtn">▶</button>
+        </div>
+      </div>
+
+      <div id="trackTitle"></div>
+      <div id="errorMsg"></div>
+
+      <div id="reader" aria-hidden="false"></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:6px">
+        <button id="toggleScan" class="qr-btn">📷 Сканирование включено</button>
+        <button id="stopScan" class="qr-btn" style="display:none">✖ Остановить</button>
+      </div>
+
+      <div class="muted">Источники треков: Google Sheet (opensheet.elk.sh)</div>
+    </div>
+  </div>
+
+  <script>
+    // === CHANGE THIS TO YOUR OPENSHEET URL ===
+    const sheetUrl = 'https://opensheet.elk.sh/1tOIw1bHa4pd1XiYL_JymSCLo5AtMkpf1sGfMrYP8Tys/%D1%82%D1%80%D0%B5%D0%BA%D0%B8';
+
+    let tracks = [];
+    let html5QrCode = null;
+    let scannerActive = false;
+
+    async function fetchTracks() {
+      try {
+        const res = await fetch(sheetUrl);
+        tracks = await res.json();
+        console.log('Загружено треков:', tracks.length);
+      } catch (err) {
+        console.error('Ошибка загрузки треков', err);
+        document.getElementById('errorMsg').textContent = 'Ошибка загрузки треков (проверьте интернет)';
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      setTimeout(()=>{ if (el.textContent === msg) el.textContent = ''; }, 4000);
+    }
+
+    function loadTrack(idFromQR = null) {
+      const id = (idFromQR !== null ? String(idFromQR).trim() : (document.getElementById('trackId').value || '').trim());
+      const titleEl = document.getElementById('trackTitle');
+      const errorEl = document.getElementById('errorMsg');
+      titleEl.textContent = '';
+      errorEl.textContent = '';
+
+      if (!tracks.length) {
+        showError('Треки ещё не загружены');
+        return;
+      }
+
+      const track = tracks.find(t => String(t.id) == String(id));
+      if (track) {
+        const player = document.getElementById('player');
+        player.src = track.url;
+        player.play().catch(e => console.warn('Автовоспроизведение могло быть заблокировано:', e));
+        titleEl.textContent = track.title || `Трек #${id}`;
+      } else {
+        showError('Трек с таким ID не найден');
+      }
+    }
+
+    function startScannerAuto() {
+      const readerEl = document.getElementById('reader');
+      if (html5QrCode) return;
+      html5QrCode = new Html5Qrcode(/* element id */ "reader", { verbose: false });
+      const config = { fps: 10, qrbox: { width: Math.min(readerEl.clientWidth, 300), height: Math.min(readerEl.clientWidth, 300) }, formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ] };
+
+      html5QrCode.start({ facingMode: "environment" }, config,
+        qrCodeMessage => {
+          console.log("QR найден:", qrCodeMessage);
+          // ожидается что в QR содержится id (например "5")
+          try { loadTrack(qrCodeMessage); } catch(e){ console.error(e); }
+          // не останавливаем сразу — можно закомментировать если нужно авто-стоп
+          stopScanner();
+        },
+        errorMessage => {
+          // игнорировать ошибки детектирования
+        }
+      ).then(() => {
+        scannerActive = true;
+        document.getElementById('toggleScan').textContent = '📷 Сканирование включено';
+        document.getElementById('stopScan').style.display = 'inline-block';
+      }).catch(err => {
+        console.error('Ошибка при старте камеры:', err);
+        showError('Ошибка доступа к камере: ' + (err && err.name ? err.name : err));
+      });
+    }
+
+    function stopScanner() {
+      if (!html5QrCode) return;
+      html5QrCode.stop().then(() => {
+        html5QrCode.clear();
+        html5QrCode = null;
+        scannerActive = false;
+        document.getElementById('reader').innerHTML = '';
+        document.getElementById('toggleScan').textContent = '📷 Сканирование выключено';
+        document.getElementById('stopScan').style.display = 'none';
+      }).catch(err => {
+        console.warn('Ошибка при остановке сканнера', err);
+      });
+    }
+
+    document.getElementById('playBtn').addEventListener('click', ()=> loadTrack(null));
+    document.getElementById('toggleScan').addEventListener('click', ()=> {
+      if (!scannerActive) startScannerAuto(); else stopScanner();
+    });
+    document.getElementById('stopScan').addEventListener('click', stopScanner);
+
+    // автозапуск камеры при загрузке страницы
+    window.addEventListener('load', async () => {
+      await fetchTracks();
+      // немного задержки, чтобы UI успел отрисоваться и камера заработала корректно
+      setTimeout(()=>{
+        startScannerAuto();
+      }, 600);
+    });
+  </script>
+</body>
+</html>

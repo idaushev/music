@@ -1,0 +1,8 @@
+{
+  "name": "QR Player",
+  "short_name": "QRPlayer",
+  "description": "Простой плеер с QR-сканером (опрашивает Google Sheet и воспроизводит треки по ID)",
+  "version": "1.0.0",
+  "author": "Generated",
+  "permissions": ["CAMERA", "INTERNET"]
+}
