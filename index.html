@@ -34,7 +34,7 @@ input[type=number]{flex:1;padding:10px;border-radius:10px 0 0 10px;border:none;f
     <div id="errorMsg"></div>
 
     <div id="reader"></div>
-    <button id="startScan">📷 Открыть камеру</button>
+    <button id="startScan" disabled>📷 Открыть камеру</button>
 
     <div class="muted" style="text-align:center;font-size:13px;margin-top:8px;">Источники треков: Google Sheet (opensheet.elk.sh)</div>
   </div>
@@ -80,38 +80,35 @@ function loadTrack(idFromQR=null){
 
 document.getElementById('playBtn').addEventListener('click',()=>loadTrack(null));
 
-// Динамическая загрузка библиотеки Html5Qrcode
+// Динамическая загрузка Html5Qrcode
 function loadHtml5QrCodeAndStart() {
+  const btn = document.getElementById('startScan');
+  const reader = document.getElementById('reader');
+
   const script = document.createElement('script');
   script.src = "https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js";
   script.onload = () => {
     console.log("Html5Qrcode загружен");
-    setupScanButton();
+    btn.disabled = false; // разрешаем кнопку
+    btn.addEventListener('click', () => {
+      reader.style.display = 'flex';
+      btn.style.display = 'none';
+
+      const html5QrCode = new Html5Qrcode("reader");
+      const config = {fps:10, qrbox:{width:Math.min(reader.clientWidth,300),height:Math.min(reader.clientWidth,300)},formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE]};
+
+      html5QrCode.start({facingMode:"environment"}, config,
+        decodedText => {
+          console.log('QR:', decodedText);
+          loadTrack(decodedText);
+          html5QrCode.stop().then(()=>html5QrCode.clear());
+        },
+        err => {}
+      ).catch(err => showError('Ошибка доступа к камере: '+(err.name||err)));
+    });
   };
-  script.onerror = () => {
-    alert("Не удалось загрузить библиотеку html5-qrcode");
-  };
+  script.onerror = () => alert("Не удалось загрузить библиотеку html5-qrcode");
   document.head.appendChild(script);
-}
-
-function setupScanButton(){
-  const btn = document.getElementById('startScan');
-  btn.addEventListener('click', () => {
-    const reader=document.getElementById('reader');
-    reader.style.display='flex';
-    btn.style.display='none';
-
-    const html5QrCode = new Html5Qrcode("reader");
-    const config = {fps:10, qrbox:{width:Math.min(reader.clientWidth,300),height:Math.min(reader.clientWidth,300)},formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE]};
-    html5QrCode.start({facingMode:"environment"}, config,
-      decodedText => {
-        console.log('QR:', decodedText);
-        loadTrack(decodedText);
-        html5QrCode.stop().then(()=>html5QrCode.clear());
-      },
-      err => {}
-    ).catch(err => showError('Ошибка доступа к камере: '+(err.name||err)));
-  });
 }
 
 window.addEventListener('load',()=>{
