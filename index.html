@@ -35,9 +35,10 @@ input[type=number]{flex:1;padding:10px;border-radius:10px 0 0 10px;border:0;font
 <script>
 const u='https://opensheet.elk.sh/1tOIw1bHa4pd1XiYL_JymSCLo5AtMkpf1sGfMrYP8Tys/%D1%82%D1%80%D0%B5%D0%BA%D0%B8',t=[],a=document.getElementById('a'),i=document.getElementById('i'),pb=document.getElementById('pb'),sb=document.getElementById('sb'),tt=document.getElementById('t'),ee=document.getElementById('e'),r=document.getElementById('r');
 function err(m){ee.textContent=m;setTimeout(()=>{if(ee.textContent===m)ee.textContent=''},4000)}
-async function load(){try{const x=await fetch(u);t.push(...await x.json());pb.disabled=sb.disabled=false}catch(e){err('Ошибка загрузки');console.error(e)}}
-function play(id=null){const v=id??i.value.trim();tt.textContent=ee.textContent='';if(!t.length)return err('Загрузка...');const tr=t.find(x=>String(x.id)===v);if(tr){a.src=tr.url;a.play().catch(()=>'');tt.textContent=tr.title||`Трек #${v}`}else err('Не найден')}
+async function load(){try{const x=await fetch(u);const d=await x.json();t.push(...d);pb.disabled=sb.disabled=false;console.log('Tracks:',d)}catch(e){err('Ошибка загрузки');console.error(e)}}
+function play(id=null){const v=id??i.value.trim();tt.textContent=ee.textContent='';if(!t.length)return err('Загрузка...');const tr=t.find(x=>String(x.id).trim()===v);if(tr){a.src=tr.url.trim();a.load();tt.textContent=tr.title?.trim()||`Трек #${v}`}else err('Не найден')}
 pb.onclick=()=>play();
+a.onclick=a.onplay=()=>a.play().catch(()=>'');
 window.onload=()=>{load();if(!window.Html5Qrcode)return err('Сканер не загружен');sb.onclick=()=>{r.style.display='flex';sb.style.display='none';const q=new Html5Qrcode('r');q.start({facingMode:'environment'},{fps:10,qrbox:{width:Math.min(r.clientWidth,300),height:Math.min(r.clientWidth,300)},formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE]},d=>{play(d);q.stop().then(q.clear)},()=>{}).catch(e=>err('Камера: '+(e.name||e)))}}};
 </script>
 </body>
