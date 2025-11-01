@@ -2,126 +2,43 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>QR Player</title>
 <style>
-:root{--accent:#ff0066;--bg:#0b0b0b;--card:#1a1a1a;--muted:#9aa0a6}
-html,body{margin:0;padding:0;height:100%;font-family:Inter,sans-serif;background:var(--bg);color:#fff;display:flex;justify-content:center;align-items:center}
-.wrap{width:100%;max-width:420px;padding:16px;box-sizing:border-box}
-.player{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,0.6);display:flex;flex-direction:column;gap:12px;align-items:stretch}
-audio{width:100%;border-radius:8px;outline:none}
-#reader{width:100%;aspect-ratio:4/3;background:#000;border-radius:10px;overflow:hidden;display:none;align-items:center;justify-content:center}
-button{background:var(--accent);border:none;padding:12px 20px;border-radius:10px;color:#fff;font-size:16px;cursor:pointer;transition:0.2s}
+:root{--a:#ff0066;--b:#0b0b0b;--c:#1a1a1a;--m:#9aa0a6}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font:16px/1.5 Inter,sans-serif;background:var(--b);color:#fff;display:flex;justify-content:center;align-items:center}
+.wrap{max-width:420px;width:100%;padding:16px}
+.p{background:var(--c);border-radius:16px;padding:16px;box-shadow:0 8px 30px #0006;display:flex;flex-direction:column;gap:12px}
+audio{width:100%;border-radius:8px;outline:0}
+#r{width:100%;aspect-ratio:4/3;background:#000;border-radius:10px;overflow:hidden;display:none;align-items:center;justify-content:center}
+button{background:var(--a);border:0;padding:12px 20px;border-radius:10px;color:#fff;font-size:16px;cursor:pointer;transition:.2s}
 button:hover{background:#ff3385}
-.input-group{display:flex;gap:8px;margin-top:8px}
-input[type=number]{flex:1;padding:10px;border-radius:10px 0 0 10px;border:none;font-size:16px;outline:none}
-#trackTitle{text-align:center;font-weight:600}
-#errorMsg{text-align:center;color:var(--accent);font-size:14px}
-@media (max-width:460px){.player{padding:12px;border-radius:12px}button,input{font-size:15px;padding:10px}}
+.i{display:flex;gap:8px;margin-top:8px}
+input[type=number]{flex:1;padding:10px;border-radius:10px 0 0 10px;border:0;font-size:16px;outline:0}
+#t{text-align:center;font-weight:600}
+#e{text-align:center;color:var(--a);font-size:14px}
+@media(max-width:460px){.p{padding:12px;border-radius:12px}button,input{font-size:15px;padding:10px}}
 </style>
-<!-- Локальная библиотека html5-qrcode -->
 <script src="html5-qrcode.min.js"></script>
 </head>
 <body>
 <div class="wrap">
-  <div class="player">
-    <audio id="player" controls></audio>
-
-    <div class="input-group">
-      <input id="trackId" type="number" placeholder="Введите ID трека">
-      <button id="playBtn" disabled>▶</button>
-    </div>
-
-    <div id="trackTitle"></div>
-    <div id="errorMsg"></div>
-
-    <div id="reader"></div>
-    <button id="startScan" disabled>📷 Открыть камеру</button>
-
-    <div class="muted" style="text-align:center;font-size:13px;margin-top:8px;">Источники треков: Google Sheet (opensheet.elk.sh)</div>
-  </div>
+<div class="p">
+<audio id="a" controls></audio>
+<div class="i"><input id="i" type="number" placeholder="ID трека"><button id="pb" disabled>▶</button></div>
+<div id="t"></div><div id="e"></div>
+<div id="r"></div><button id="sb" disabled>📷 Камера</button>
+<div style="text-align:center;font-size:13px;margin-top:8px;color:var(--m)">Google Sheet (opensheet.elk.sh)</div>
 </div>
-
+</div>
 <script>
-const sheetUrl = 'https://opensheet.elk.sh/1tOIw1bHa4pd1XiYL_JymSCLo5AtMkpf1sGfMrYP8Tys/%D1%82%D1%80%D0%B5%D0%BA%D0%B8';
-let tracks = [];
-
-const playBtn = document.getElementById('playBtn');
-const scanBtn = document.getElementById('startScan');
-
-function showError(msg){
-  const el = document.getElementById('errorMsg');
-  el.textContent = msg;
-  setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; },4000);
-}
-
-async function fetchTracks(){
-  try {
-    const res = await fetch(sheetUrl);
-    tracks = await res.json();
-    console.log('Треки загружены:', tracks.length);
-
-    // Разблокируем кнопки
-    playBtn.disabled = false;
-    scanBtn.disabled = false;
-  } catch(e){
-    showError('Ошибка загрузки треков');
-    console.error(e);
-  }
-}
-
-function loadTrack(idFromQR=null){
-  const id = idFromQR !== null ? String(idFromQR).trim() : document.getElementById('trackId').value.trim();
-  const titleEl = document.getElementById('trackTitle');
-  const errorEl = document.getElementById('errorMsg');
-  titleEl.textContent=''; errorEl.textContent='';
-
-  if(!tracks.length){
-    showError('Треки ещё загружаются, подождите...');
-    return;
-  }
-
-  const track = tracks.find(t=>String(t.id)===String(id));
-  if(track){
-    const player = document.getElementById('player');
-    player.src = track.url;
-    player.play().catch(e=>console.warn('Автовоспроизведение могло быть заблокировано',e));
-    titleEl.textContent = track.title || `Трек #${id}`;
-  } else showError('Трек с таким ID не найден');
-}
-
-playBtn.addEventListener('click',()=>loadTrack(null));
-
-window.addEventListener('load',()=>{
-  fetchTracks();
-
-  if(typeof Html5Qrcode === 'undefined'){
-    showError('Сканер QR-кодов не загружен!');
-    return;
-  }
-
-  scanBtn.addEventListener('click',()=>{
-    const reader = document.getElementById('reader');
-    reader.style.display = 'flex';
-    scanBtn.style.display = 'none';
-
-    const html5QrCode = new Html5Qrcode("reader");
-    const config = {
-      fps: 10,
-      qrbox: { width: Math.min(reader.clientWidth,300), height: Math.min(reader.clientWidth,300) },
-      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-    };
-
-    html5QrCode.start({facingMode:"environment"}, config,
-      decodedText => {
-        console.log('QR:', decodedText);
-        loadTrack(decodedText);
-        html5QrCode.stop().then(()=>html5QrCode.clear());
-      },
-      err => {}
-    ).catch(err => showError('Ошибка доступа к камере: '+(err.name||err)));
-  });
-});
+const u='https://opensheet.elk.sh/1tOIw1bHa4pd1XiYL_JymSCLo5AtMkpf1sGfMrYP8Tys/%D1%82%D1%80%D0%B5%D0%BA%D0%B8',t=[],a=document.getElementById('a'),i=document.getElementById('i'),pb=document.getElementById('pb'),sb=document.getElementById('sb'),tt=document.getElementById('t'),ee=document.getElementById('e'),r=document.getElementById('r');
+function err(m){ee.textContent=m;setTimeout(()=>{if(ee.textContent===m)ee.textContent=''},4000)}
+async function load(){try{const x=await fetch(u);t.push(...await x.json());pb.disabled=sb.disabled=false}catch(e){err('Ошибка загрузки');console.error(e)}}
+function play(id=null){const v=id??i.value.trim();tt.textContent=ee.textContent='';if(!t.length)return err('Загрузка...');const tr=t.find(x=>String(x.id)===v);if(tr){a.src=tr.url;a.play().catch(()=>'');tt.textContent=tr.title||`Трек #${v}`}else err('Не найден')}
+pb.onclick=()=>play();
+window.onload=()=>{load();if(!window.Html5Qrcode)return err('Сканер не загружен');sb.onclick=()=>{r.style.display='flex';sb.style.display='none';const q=new Html5Qrcode('r');q.start({facingMode:'environment'},{fps:10,qrbox:{width:Math.min(r.clientWidth,300),height:Math.min(r.clientWidth,300)},formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE]},d=>{play(d);q.stop().then(q.clear)},()=>{}).catch(e=>err('Камера: '+(e.name||e)))}}};
 </script>
 </body>
 </html>
