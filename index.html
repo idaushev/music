@@ -20,12 +20,12 @@ input[type=number]{flex:1;padding:10px;border-radius:10px 0 0 10px;border:0;font
 #e{text-align:center;color:var(--a);font-size:14px}
 @media(max-width:460px){.p{padding:12px;border-radius:12px}button,input{font-size:15px;padding:10px}}
 </style>
-<script src="html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
 <div class="wrap">
 <div class="p">
-<audio id="a" controls></audio>
+<audio id="a" controls crossorigin="anonymous"></audio>
 <div class="i"><input id="i" type="number" placeholder="ID трека"><button id="pb" disabled>▶</button></div>
 <div id="t"></div><div id="e"></div>
 <div id="r"></div><button id="sb" disabled>📷 Камера</button>
@@ -35,11 +35,10 @@ input[type=number]{flex:1;padding:10px;border-radius:10px 0 0 10px;border:0;font
 <script>
 const u='https://opensheet.elk.sh/1tOIw1bHa4pd1XiYL_JymSCLo5AtMkpf1sGfMrYP8Tys/%D1%82%D1%80%D0%B5%D0%BA%D0%B8',t=[],a=document.getElementById('a'),i=document.getElementById('i'),pb=document.getElementById('pb'),sb=document.getElementById('sb'),tt=document.getElementById('t'),ee=document.getElementById('e'),r=document.getElementById('r');
 function err(m){ee.textContent=m;setTimeout(()=>{if(ee.textContent===m)ee.textContent=''},4000)}
-async function load(){try{const x=await fetch(u);const d=await x.json();t.push(...d);pb.disabled=sb.disabled=false;console.log('Tracks:',d)}catch(e){err('Ошибка загрузки');console.error(e)}}
-function play(id=null){const v=id??i.value.trim();tt.textContent=ee.textContent='';if(!t.length)return err('Загрузка...');const tr=t.find(x=>String(x.id).trim()===v);if(tr){a.src=tr.url.trim();a.load();tt.textContent=tr.title?.trim()||`Трек #${v}`}else err('Не найден')}
+async function load(){try{const x=await fetch(u);const d=await x.json();t.length=0;t.push(...d);pb.disabled=sb.disabled=false;console.log('Tracks:',t.length)}catch(e){err('Ошибка загрузки');console.error(e)}}
+function play(id=null){const v=id?String(id).trim():i.value.trim();tt.textContent=ee.textContent='';if(!t.length)return err('Загрузка...');const tr=t.find(x=>String(x.id).trim()===v);if(tr){a.src=atob(tr.url);a.load();a.play().catch(e=>err('Воспроизведение заблокировано: '+e.message));tt.textContent=(tr.Наименование||`Трек #${v}`).trim()}else err('Не найден')}
 pb.onclick=()=>play();
-a.onclick=a.onplay=()=>a.play().catch(()=>'');
-window.onload=()=>{load();if(!window.Html5Qrcode)return err('Сканер не загружен');sb.onclick=()=>{r.style.display='flex';sb.style.display='none';const q=new Html5Qrcode('r');q.start({facingMode:'environment'},{fps:10,qrbox:{width:Math.min(r.clientWidth,300),height:Math.min(r.clientWidth,300)},formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE]},d=>{play(d);q.stop().then(q.clear)},()=>{}).catch(e=>err('Камера: '+(e.name||e)))}}};
+window.addEventListener('load',()=>{load();if(typeof Html5Qrcode==='undefined')return err('Сканер не загружен');sb.onclick=()=>{r.style.display='flex';sb.style.display='none';const q=new Html5Qrcode('r');q.start({facingMode:'environment'},{fps:10,qrbox:{width:Math.min(r.clientWidth,300),height:Math.min(r.clientWidth,300)},formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE]},d=>{play(d);q.stop().then(()=>q.clear())},()=>{}).catch(e=>err('Камера: '+(e.name||e)))}});
 </script>
 </body>
 </html>
